@@ -51,6 +51,12 @@ export function Prefs() {
           <label>Find subscriptions in Gmail<span className="hint">Reads your receipts on this device</span></label>
           <button className="btn" type="button" onClick={() => open({ type: 'gmail' })}>Connect</button>
         </div>
+        {(settings.ignored ?? []).length ? (
+          <div className="line">
+            <label>Hidden suggestions<span className="hint">{(settings.ignored ?? []).length} marked as not a subscription</span></label>
+            <button className="btn" type="button" onClick={() => { setSettings({ ignored: [] }); say('Suggestions reset') }}>Show again</button>
+          </div>
+        ) : null}
       </div>
       <div className="head2">Exchange rates</div>
       <div className="group">

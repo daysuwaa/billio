@@ -44,3 +44,15 @@ create policy "own cards" on public.billio_cards for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "own subs" on public.billio_subs for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Reminder emails: remembers what was already sent so nobody gets the same email twice.
+create table if not exists public.billio_reminders_sent (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  sub_id text not null,
+  due date not null,
+  days_before int not null,
+  sent_at timestamptz not null default now(),
+  primary key (user_id, sub_id, due, days_before)
+);
+alter table public.billio_reminders_sent enable row level security;
+-- No policies on purpose: only the reminder function (service role) can read or write it.

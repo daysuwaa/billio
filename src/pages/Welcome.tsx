@@ -21,6 +21,7 @@ export function Welcome() {
           <button className="btn ghost block" type="button" onClick={() => nav('/auth?mode=in')}>I have an account</button>
         </div>
         <p className="fine">We never ask for your card number, PIN or CVV.</p>
+        <p className="fine"><a href="/privacy.html">Privacy policy</a> &nbsp;|&nbsp; <a href="/terms.html">Terms of service</a></p>
       </div>
     </div>
   )

@@ -27,6 +27,10 @@ export function Upcoming() {
   const first = it[0]
   const week = it.filter((x) => x.n <= 7)
   const weekTotal = week.reduce((a, x) => a + convert(x.s.amount, x.s.cur, 'NGN', rates), 0)
+  const lastScan = settings.lastScan ? new Date(settings.lastScan) : null
+  const since = lastScan ? Math.floor((Date.now() - lastScan.getTime()) / 864e5) : null
+  const stale = since !== null && since >= 14
+  const scanned = since === null ? 'Billio reads your receipts and lists what is active.' : since === 0 ? 'Scanned today. Scan again for anything new.' : 'Last scanned ' + since + (since === 1 ? ' day' : ' days') + ' ago. Scan again for anything new.'
   const dateStr = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(today())
 
   const hero = first ? (
@@ -67,7 +71,7 @@ export function Upcoming() {
           </button>
           <button className="unknown find" type="button" onClick={() => open({ type: 'gmail' })}>
             <Mail />
-            <span><b>Find subscriptions in Gmail</b><span>Billio reads your receipts and lists what is active.</span></span>
+            <span><b>{stale ? 'Time to check Gmail again' : 'Find subscriptions in Gmail'}</b><span>{scanned}</span></span>
           </button>
         </div>
       </div>

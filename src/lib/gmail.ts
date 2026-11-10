@@ -147,7 +147,7 @@ function guessCycle(dates: Date[], fallback: Cycle): Cycle {
 const STALE_DAYS: Record<Cycle, number> = { weekly: 21, monthly: 75, yearly: 400 }
 
 /** Reads receipts in the user's Gmail, on this device, and works out what is still active. */
-export async function scanGmail(token: string, tracked: Sub[], onProgress: (done: number, total: number) => void): Promise<Found[]> {
+export async function scanGmail(token: string, tracked: Sub[], ignored: string[], onProgress: (done: number, total: number) => void): Promise<Found[]> {
   const list = await api<{ messages?: { id: string }[] }>(token, 'messages?maxResults=' + MAX_MESSAGES + '&q=' + encodeURIComponent(QUERY))
   const ids = (list.messages ?? []).map((m) => m.id)
   const by = new Map<string, { m: Merchant; recs: Rec[] }>()
@@ -199,7 +199,7 @@ export async function scanGmail(token: string, tracked: Sub[], onProgress: (done
   const t = today().getTime()
   const out: Found[] = []
   by.forEach(({ m, recs }, key) => {
-    if (tracked.some((s) => m.subRe.test(s.name))) return
+    if (tracked.some((s) => m.subRe.test(s.name)) || ignored.includes(key)) return
     if (unknown.has(m.name) && recs.length < 2 && !recs[0].due && !recs[0].strong) return
     const sorted = [...recs].sort((a, b) => b.date.getTime() - a.date.getTime())
     const latest = sorted[0]

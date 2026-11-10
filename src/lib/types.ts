@@ -28,6 +28,10 @@ export interface Settings {
   buffer: number
   horizon: 7 | 14 | 30
   theme: 'system' | 'light' | 'dark'
+  /** Gmail suggestions the user said are not subscriptions. */
+  ignored?: string[]
+  /** When Gmail was last scanned (ISO). */
+  lastScan?: string
 }
 
 export interface SubPrefill {
