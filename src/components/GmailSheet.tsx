@@ -111,7 +111,7 @@ export function GmailSheet() {
                   </div>
                 ))}
               </div>
-              <div className="stack">
+              <div className="stack sticky-actions">
                 <button className="btn primary block" type="button" onClick={add} disabled={!chosen.length || blocked}>Add {chosen.length} {chosen.length === 1 ? 'subscription' : 'subscriptions'}</button>
                 <button className="btn block" type="button" onClick={close}>Cancel</button>
               </div>

@@ -288,3 +288,6 @@ textarea{width:100%;border:1px solid var(--rule);border-radius:10px;padding:12px
   .seg button{flex:1;padding:10px 0}
   .group .line{min-height:56px}
 }
+
+/* Keep the Add / Cancel buttons visible while a long list scrolls inside a sheet. */
+.sticky-actions{position:sticky;bottom:0;z-index:2;background:var(--paper);padding:14px 0 calc(10px + env(safe-area-inset-bottom,0px));margin-top:8px;border-top:1px solid var(--rule)}
