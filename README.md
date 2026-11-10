@@ -6,12 +6,6 @@ Live: https://billio-three.vercel.app
 
 ![Billio on desktop: the next debit counted down in days, with the subscriptions coming up](docs/screenshots/dashboard-desktop.png)
 
-<p align="center">
-  <img src="docs/screenshots/mobile.png" alt="Billio on a phone" width="300" />
-</p>
-
-![Billio landing page](docs/screenshots/welcome-desktop.png)
-
 ## What it does
 
 - **Countdown to the next charge.** Add a subscription once and Billio works out the next billing date from its cycle (weekly, monthly, yearly).
@@ -41,11 +35,11 @@ Without Supabase keys the app still works, saving everything on the device only.
 
 ### Environment variables
 
-| Name | What it is |
-| --- | --- |
+| Name                    | What it is                                   |
+| ----------------------- | -------------------------------------------- |
 | `VITE_GOOGLE_CLIENT_ID` | Google OAuth web client ID, for Gmail import |
-| `VITE_SUPABASE_URL` | Your Supabase project URL |
-| `VITE_SUPABASE_KEY` | Your Supabase publishable (anon) key |
+| `VITE_SUPABASE_URL`     | Your Supabase project URL                    |
+| `VITE_SUPABASE_KEY`     | Your Supabase publishable (anon) key         |
 
 ## Set up the backend
 
