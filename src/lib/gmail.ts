@@ -125,6 +125,8 @@ function cycleHint(t: string): Cycle | undefined {
 
 /** Apple bills many apps under one sender, so pull the app name out of the body. */
 function appleApp(t: string): string | null {
+  const svc = /\b(Apple Music|iCloud\+?|Apple TV\+?|Apple One|Apple Arcade|Apple News\+?|Apple Fitness\+?)/i.exec(t)
+  if (svc) return svc[1].replace(/^icloud$/i, 'iCloud+').replace(/^apple tv$/i, 'Apple TV+')
   const a = /\bApp\s+([^:]{2,30}?)\s*:/.exec(t)
   if (a) return a[1].trim()
   const pre = t.split(/Dear /)[0].replace(/^\s*Apple\s*/i, '').replace(/^\s*Subscription\s+\w+\s*/i, '')
@@ -175,7 +177,7 @@ export async function scanGmail(token: string, tracked: Sub[], ignored: string[]
       a = renewal ? parseAmountText((renewal[1] ?? '') + renewal[2]) ?? parseAmountText(body) : parseAmountText(body)
     }
     const priced = !!a && a.a > 0
-    if (!priced && known) return
+    if (!priced && known && !isApple) return
     let m = merchant
     if (isApple) {
       const app = appleApp(body)
@@ -185,7 +187,7 @@ export async function scanGmail(token: string, tracked: Sub[], ignored: string[]
     const due = dm ? parseDateText(dm[1]) ?? undefined : undefined
     const date = new Date(Number(msg.internalDate ?? Date.now()))
     const e = by.get(m.name) ?? { m, recs: [] }
-    e.recs.push({ date, amount: priced && a ? a.a : 0, cur: (priced && a?.c) || 'NGN', cycle: cycleHint(subject + ' ' + body), due, strong: STRONG.test(subject) })
+    e.recs.push({ date, amount: priced && a ? a.a : 0, cur: (priced && a?.c) || 'NGN', cycle: cycleHint(subject + ' ' + body), due, strong: STRONG.test(subject) || (isApple && STRONG.test(body)) })
     by.set(m.name, e)
   }
 
