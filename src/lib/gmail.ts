@@ -7,7 +7,10 @@ import type { Currency, Cycle, Sub } from './types'
 export const GOOGLE_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 const SCOPE = 'https://www.googleapis.com/auth/gmail.readonly'
 const QUERY = '(receipt OR invoice OR membership OR renewed OR confirmed OR "payment received" OR "payment confirmation" OR renewal OR renews OR subscription OR billing) newer_than:400d'
-const MAX_MESSAGES = 120
+const MAIN_QUERY = QUERY + ' -category:promotions -category:social -category:forums'
+const BIG_SENDERS = 'from:(apple.com OR google.com OR netflix.com OR spotify.com OR adobe.com OR microsoft.com OR openai.com OR anthropic.com OR canva.com OR figma.com OR notion.so OR github.com OR youtube.com OR amazon.com OR snapchat.com OR snap.com OR chowdeck.com) (receipt OR invoice OR renewal OR renews OR subscription) newer_than:400d'
+const MAX_MAIN = 300
+const MAX_BIG = 100
 
 interface TokenResponse { access_token?: string; error?: string }
 interface TokenClient { requestAccessToken: (o?: { prompt?: string }) => void }
@@ -150,8 +153,18 @@ const STALE_DAYS: Record<Cycle, number> = { weekly: 21, monthly: 75, yearly: 400
 
 /** Reads receipts in the user's Gmail, on this device, and works out what is still active. */
 export async function scanGmail(token: string, tracked: Sub[], ignored: string[], onProgress: (done: number, total: number) => void): Promise<Found[]> {
-  const list = await api<{ messages?: { id: string }[] }>(token, 'messages?maxResults=' + MAX_MESSAGES + '&q=' + encodeURIComponent(QUERY))
-  const ids = (list.messages ?? []).map((m) => m.id)
+  const collect = async (q: string, max: number): Promise<string[]> => {
+    const got: string[] = []
+    let page = ''
+    while (got.length < max) {
+      const r = await api<{ messages?: { id: string }[]; nextPageToken?: string }>(token, 'messages?maxResults=' + Math.min(100, max - got.length) + '&q=' + encodeURIComponent(q) + (page ? '&pageToken=' + page : ''))
+      got.push(...(r.messages ?? []).map((m) => m.id))
+      if (!r.nextPageToken) break
+      page = r.nextPageToken
+    }
+    return got
+  }
+  const ids = [...new Set([...(await collect(MAIN_QUERY, MAX_MAIN)), ...(await collect(BIG_SENDERS, MAX_BIG))])]
   const by = new Map<string, { m: Merchant; recs: Rec[] }>()
   let done = 0
   onProgress(0, ids.length)
