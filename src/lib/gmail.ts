@@ -89,7 +89,17 @@ function guessSender(from: string): Merchant | null {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function api<T>(token: string, path: string, attempt = 0): Promise<T> {
-  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/' + path, { headers: { Authorization: 'Bearer ' + token } })
+  let res: Response
+  try {
+    res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/' + path, { headers: { Authorization: 'Bearer ' + token } })
+  } catch {
+    // Network dropped or the browser blocked the request. Retry a few times before giving up.
+    if (attempt < 3) {
+      await wait(800 * (attempt + 1))
+      return api<T>(token, path, attempt + 1)
+    }
+    throw new Error('Could not reach Gmail. Check your connection, turn off any VPN or ad blocker, open Billio in Safari or Chrome (not inside another app), then tap Connect Gmail again.')
+  }
   if (res.ok) return res.json() as Promise<T>
   let reason = ''
   try { reason = ((await res.json()) as { error?: { message?: string } }).error?.message ?? '' } catch { /* no body */ }
