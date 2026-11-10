@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../lib/store'
+import { cloudOn, signOutAll } from '../lib/sync'
 import { useUI } from '../lib/ui'
 
 function NumField({ value, onSave, step }: { value: number; onSave: (n: number) => void; step?: string }) {
@@ -19,7 +20,7 @@ function NumField({ value, onSave, step }: { value: number; onSave: (n: number) 
 }
 
 export function Prefs() {
-  const { settings, cards, subs, user, signOut, setSettings, setRate, loadExamples, deleteAll } = useStore()
+  const { settings, cards, subs, user, setSettings, setRate, loadExamples, deleteAll } = useStore()
   const say = useUI((s) => s.say)
   const open = useUI((s) => s.open)
   const nav = useNavigate()
@@ -71,7 +72,7 @@ export function Prefs() {
       <div className="stack">
         <button className="btn block" type="button" onClick={copy}>Copy my data as JSON</button>
         <button className="btn block" type="button" onClick={() => { loadExamples(); say('Examples added') }}>Add example subscriptions</button>
-        <button className="btn block" type="button" onClick={() => { signOut(); nav('/welcome', { replace: true }) }}>Sign out</button>
+        <button className="btn block" type="button" onClick={async () => { await signOutAll(); nav('/welcome', { replace: true }) }}>Sign out</button>
         <button
           className="btn danger block" type="button"
           onClick={() => {
@@ -85,7 +86,7 @@ export function Prefs() {
         >{sure ? 'Tap again to delete everything' : 'Delete all my data'}</button>
       </div>
       <p style={{ color: 'var(--mute)', fontSize: '.8rem', margin: '20px 2px 0' }}>
-        Your data stays on this phone for now. We never ask for your card number, PIN or CVV. Reminders and receipt-email import are not built yet.
+        {cloudOn ? 'Your subscriptions are saved to your account, so they follow you to any device. ' : 'Your data stays on this phone for now. '}We never ask for your card number, PIN or CVV. Reminders and receipt-email import are not built yet.
       </p>
     </div>
   )

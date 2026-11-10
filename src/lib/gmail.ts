@@ -55,11 +55,16 @@ function decode(b64: string): string {
 
 function bodyText(p: Part | undefined): string {
   if (!p) return ''
-  if (p.mimeType === 'text/plain' && p.body?.data) return decode(p.body.data)
-  const kids = (p.parts ?? []).map(bodyText).filter(Boolean)
-  if (kids.length) return kids.join('\n')
-  if (p.mimeType === 'text/html' && p.body?.data) return decode(p.body.data).replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ')
-  return ''
+  const plain: string[] = []
+  const html: string[] = []
+  const walk = (x: Part) => {
+    if (x.mimeType === 'text/plain' && x.body?.data) plain.push(decode(x.body.data))
+    else if (x.mimeType === 'text/html' && x.body?.data) html.push(decode(x.body.data).replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#36;|&dollar;/g, '$').replace(/\s+/g, ' '))
+    ;(x.parts ?? []).forEach(walk)
+  }
+  walk(p)
+  // Many receipts keep the amounts only in the HTML part, so read both.
+  return [...plain, ...html].join('\n')
 }
 
 const SKIP_SENDER = /(^|[.@])(gmail|google|accounts\.google|paystack|flutterwave|mail|email|e-mail)\.|bank|alert|noreply@(gt|zenith|access|uba|firstbank)/i
@@ -103,9 +108,11 @@ export interface Found {
   last: Date
   next: Date
   seen: number
+  /** The amount is not in the email (for example it is inside a PDF), so the user types it. */
+  needsAmount?: boolean
 }
 
-interface Rec { date: Date; amount: number; cur: Currency; cycle?: Cycle; due?: Date }
+interface Rec { date: Date; amount: number; cur: Currency; cycle?: Cycle; due?: Date; strong?: boolean }
 const RECEIPTY = /receipt|invoice|payment|billing|renew|subscription|membership|confirm|charged|your order|thank you/i
 const STRONG = /renew|subscription|membership|recurring|auto-?pay/i
 const NOT_SUB = /\b(order|shipped|shipping|delivery|delivered|courier|promo|voucher|credit|compensation|refund|cart|sorry|rate your)\b/i
@@ -163,21 +170,22 @@ export async function scanGmail(token: string, tracked: Sub[], onProgress: (done
     let body = ''
     if (!a || isApple || STRONG.test(subject)) {
       const full = await api<Msg>(token, 'messages/' + id + '?format=full')
-      body = bodyText(full.payload).slice(0, 4000)
+      body = bodyText(full.payload).slice(0, 8000)
       const renewal = /renewal price\s*[:\-]?\s*([₦$€£]|NGN|USD|EUR|GBP)?\s*([\d,]+(?:\.\d{1,2})?)/i.exec(body)
       a = renewal ? parseAmountText((renewal[1] ?? '') + renewal[2]) ?? parseAmountText(body) : parseAmountText(body)
     }
-    if (!a || !(a.a > 0)) return
+    const priced = !!a && a.a > 0
+    if (!priced && known) return
     let m = merchant
     if (isApple) {
       const app = appleApp(body)
       if (app) { m = { ...merchant, name: app, domain: '', subRe: new RegExp(app.split(' ')[0].replace(/[^\w]/g, ''), 'i') }; unknown.add(app) }
     }
-    const dm = /(?:renew\w*|starting)\s*(?:on|from|date)?\s*[:\-]?\s*(\d{1,2}\s+[A-Za-z]+\s+\d{4}|[A-Za-z]+\s+\d{1,2},?\s+\d{4})/i.exec(body)
+    const dm = /(?:renew\w*|starting|next billing date|next payment(?: date)?|next charge|billing date)\s*(?:on|from|date)?\s*[:\-]?\s*(\d{1,2}\s+[A-Za-z]+\s+\d{4}|[A-Za-z]+\s+\d{1,2},?\s+\d{4})/i.exec(body)
     const due = dm ? parseDateText(dm[1]) ?? undefined : undefined
     const date = new Date(Number(msg.internalDate ?? Date.now()))
     const e = by.get(m.name) ?? { m, recs: [] }
-    e.recs.push({ date, amount: a.a, cur: a.c ?? 'NGN', cycle: cycleHint(subject + ' ' + body), due })
+    e.recs.push({ date, amount: priced && a ? a.a : 0, cur: (priced && a?.c) || 'NGN', cycle: cycleHint(subject + ' ' + body), due, strong: STRONG.test(subject) })
     by.set(m.name, e)
   }
 
@@ -192,7 +200,7 @@ export async function scanGmail(token: string, tracked: Sub[], onProgress: (done
   const out: Found[] = []
   by.forEach(({ m, recs }, key) => {
     if (tracked.some((s) => m.subRe.test(s.name))) return
-    if (unknown.has(m.name) && recs.length < 2 && !recs[0].due) return
+    if (unknown.has(m.name) && recs.length < 2 && !recs[0].due && !recs[0].strong) return
     const sorted = [...recs].sort((a, b) => b.date.getTime() - a.date.getTime())
     const latest = sorted[0]
     const cycle = guessCycle(recs.map((r) => r.date), recs.find((r) => r.cycle)?.cycle ?? m.cycle)
@@ -200,7 +208,10 @@ export async function scanGmail(token: string, tracked: Sub[], onProgress: (done
     while (due && due.getTime() < t) due = advance(due, cycle)
     const age = (t - latest.date.getTime()) / 864e5
     if (!due && age > STALE_DAYS[cycle]) return
-    out.push({ key, name: m.name, domain: m.domain, amount: latest.amount, cur: latest.cur, cycle, last: latest.date, next: due ?? advance(latest.date, cycle), seen: recs.length })
+    const priced = sorted.find((r) => r.amount > 0)
+    let next = due ?? advance(latest.date, cycle)
+    while (next.getTime() < t) next = advance(next, cycle)
+    out.push({ key, name: m.name, domain: m.domain, amount: priced?.amount ?? 0, cur: priced?.cur ?? latest.cur, cycle, last: latest.date, next, seen: recs.length, needsAmount: !priced })
   })
   return out.sort((a, b) => a.next.getTime() - b.next.getTime())
 }

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Mark } from '../components/Mark'
 import { APP_NAME } from '../lib/brand'
+import { cloudOn, signInEmail, signUpEmail } from '../lib/sync'
 import { useStore } from '../lib/store'
 
 export function Auth() {
@@ -13,16 +14,26 @@ export function Auth() {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
   const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     const mail = email.trim().toLowerCase()
     if (up && !name.trim()) return setErr('Tell us what to call you.')
     if (!/^\S+@\S+\.\S+$/.test(mail)) return setErr('Enter a valid email address.')
     if (pw.length < 8) return setErr('Use at least 8 characters for your password.')
-    // Placeholder until a backend is connected: the account lives on this device and the password is not stored.
-    signIn({ email: mail, name: name.trim() || mail.split('@')[0] })
-    nav('/', { replace: true })
+    if (!cloudOn) {
+      signIn({ email: mail, name: name.trim() || mail.split('@')[0] })
+      nav('/', { replace: true })
+      return
+    }
+    setBusy(true)
+    setErr('')
+    const r = up ? await signUpEmail(mail, pw, name.trim()) : await signInEmail(mail, pw)
+    setBusy(false)
+    if (r.error) return setErr(r.error)
+    if ('confirm' in r && r.confirm) return setErr('Check your email and tap the link to confirm, then sign in.')
+    // The session watcher signs you in and loads your data; the page changes by itself.
   }
 
   return (
@@ -51,7 +62,7 @@ export function Auth() {
           <input id="a-pw" type="password" autoComplete={up ? 'new-password' : 'current-password'} value={pw} onChange={(e) => setPw(e.target.value)} />
         </div>
         <p className="err" role="alert">{err}</p>
-        <button className="btn primary block" type="submit">{up ? 'Create account' : 'Sign in'}</button>
+        <button className="btn primary block" type="submit" disabled={busy}>{busy ? 'One moment' : up ? 'Create account' : 'Sign in'}</button>
       </form>
       </div>
       <p className="q-hint" style={{ marginTop: 18, textAlign: 'center' }}>

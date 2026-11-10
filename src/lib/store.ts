@@ -29,6 +29,8 @@ interface State {
   /** Placeholder sign-in that keeps the account on this device until a backend is connected. */
   signIn: (u: User) => void
   signOut: () => void
+  /** Clears this device after signing out of an account. */
+  reset: () => void
   finishOnboarding: () => void
   saveSub: (s: Omit<Sub, 'id'> & { id?: string }) => void
   deleteSub: (id: string) => void
@@ -50,6 +52,7 @@ export const useStore = create<State>()(
       settings: DEFAULT_SETTINGS,
       signIn: (user) => set({ user }),
       signOut: () => set({ user: null }),
+      reset: () => set((st) => ({ user: null, onboarded: false, cards: [], subs: [], settings: { ...DEFAULT_SETTINGS, theme: st.settings.theme } })),
       finishOnboarding: () => set({ onboarded: true }),
       saveSub: (s) =>
         set((st) => {

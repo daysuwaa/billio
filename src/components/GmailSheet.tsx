@@ -4,6 +4,7 @@ import { GOOGLE_CLIENT_ID, requestGmailToken, scanGmail, type Found } from '../l
 import { fmt } from '../lib/money'
 import { useStore } from '../lib/store'
 import { useUI } from '../lib/ui'
+import type { Currency } from '../lib/types'
 import { Logo } from './Logo'
 import { Sheet } from './Sheet'
 
@@ -17,6 +18,8 @@ export function GmailSheet() {
   const [prog, setProg] = useState<[number, number]>([0, 0])
   const [found, setFound] = useState<Found[]>([])
   const [on, setOn] = useState<Record<string, boolean>>({})
+  const [amt, setAmt] = useState<Record<string, string>>({})
+  const [curs, setCurs] = useState<Record<string, Currency>>({})
 
   const start = async () => {
     setMsg('')
@@ -36,10 +39,13 @@ export function GmailSheet() {
   }
 
   const chosen = found.filter((f) => on[f.key])
+  const amountOf = (f: Found) => (f.needsAmount ? Number(amt[f.key]) || 0 : f.amount)
+  const curOf = (f: Found): Currency => (f.needsAmount ? curs[f.key] ?? f.cur : f.cur)
+  const blocked = chosen.some((f) => !(amountOf(f) > 0))
   const add = () => {
     chosen.forEach((f) => {
-      const card = cards.find((c) => c.cur === f.cur) ?? cards[0]
-      saveSub({ name: f.name, amount: f.amount, cur: f.cur, cycle: f.cycle, anchor: toISO(f.next), card: card?.id ?? '', domain: f.domain })
+      const card = cards.find((c) => c.cur === curOf(f)) ?? cards[0]
+      saveSub({ name: f.name, amount: amountOf(f), cur: curOf(f), cycle: f.cycle, anchor: toISO(f.next), card: card?.id ?? '', domain: f.domain })
     })
     say(chosen.length === 1 ? 'Added 1 subscription' : 'Added ' + chosen.length + ' subscriptions')
     close()
@@ -72,16 +78,26 @@ export function GmailSheet() {
               <p className="q-hint" style={{ margin: '-4px 0 14px' }}>Found {found.length} active {found.length === 1 ? 'subscription' : 'subscriptions'}. Untick anything that is wrong. You can fix amounts and dates after adding.</p>
               <div className="tiles">
                 {found.map((f) => (
-                  <button key={f.key} type="button" className="tile-pick" aria-pressed={!!on[f.key]} onClick={() => setOn({ ...on, [f.key]: !on[f.key] })}>
-                    <span className="tick" aria-hidden="true">{on[f.key] ? '✓' : ''}</span>
-                    <Logo name={f.name} domain={f.domain} />
-                    <span style={{ flex: 1, minWidth: 0 }}><b>{f.name}</b><span>Next about {fmtDate(f.next)}, seen {f.seen} {f.seen === 1 ? 'time' : 'times'}</span></span>
-                    <b>{fmt(f.amount, f.cur)}</b>
-                  </button>
+                  <div key={f.key}>
+                    <button type="button" className="tile-pick" style={{ width: '100%' }} aria-pressed={!!on[f.key]} onClick={() => setOn({ ...on, [f.key]: !on[f.key] })}>
+                      <span className="tick" aria-hidden="true">{on[f.key] ? '\u2713' : ''}</span>
+                      <Logo name={f.name} domain={f.domain} />
+                      <span style={{ flex: 1, minWidth: 0 }}><b>{f.name}</b><span>{f.needsAmount ? 'The amount is not in the email. Type it below.' : 'Next about ' + fmtDate(f.next) + ', seen ' + f.seen + (f.seen === 1 ? ' time' : ' times')}</span></span>
+                      {f.needsAmount ? null : <b>{fmt(f.amount, f.cur)}</b>}
+                    </button>
+                    {f.needsAmount && on[f.key] ? (
+                      <div className="two" style={{ margin: '8px 0 4px' }}>
+                        <input type="number" inputMode="decimal" placeholder="Amount" aria-label={f.name + ' amount'} value={amt[f.key] ?? ''} onChange={(e) => setAmt({ ...amt, [f.key]: e.target.value })} />
+                        <select aria-label={f.name + ' currency'} value={curOf(f)} onChange={(e) => setCurs({ ...curs, [f.key]: e.target.value as Currency })}>
+                          <option value="NGN">{'\u20A6'} NGN</option><option value="USD">$ USD</option><option value="EUR">{'\u20AC'} EUR</option><option value="GBP">{'\u00A3'} GBP</option>
+                        </select>
+                      </div>
+                    ) : null}
+                  </div>
                 ))}
               </div>
               <div className="stack">
-                <button className="btn primary block" type="button" onClick={add} disabled={!chosen.length}>Add {chosen.length} {chosen.length === 1 ? 'subscription' : 'subscriptions'}</button>
+                <button className="btn primary block" type="button" onClick={add} disabled={!chosen.length || blocked}>Add {chosen.length} {chosen.length === 1 ? 'subscription' : 'subscriptions'}</button>
                 <button className="btn block" type="button" onClick={close}>Cancel</button>
               </div>
             </>

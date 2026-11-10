@@ -7,6 +7,7 @@ import { GmailSheet } from './components/GmailSheet'
 import { Mark } from './components/Mark'
 import { SubSheet } from './components/SubSheet'
 import { APP_NAME } from './lib/brand'
+import { initSync } from './lib/sync'
 import { useStore } from './lib/store'
 import { useUI } from './lib/ui'
 import { Auth } from './pages/Auth'
@@ -88,6 +89,7 @@ function AppLayout() {
 
 export default function App() {
   const theme = useStore((s) => s.settings.theme)
+  useEffect(() => { initSync() }, [])
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'system') root.removeAttribute('data-theme')
