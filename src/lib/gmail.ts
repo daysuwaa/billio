@@ -16,7 +16,7 @@ interface TokenResponse { access_token?: string; error?: string }
 interface TokenClient { requestAccessToken: (o?: { prompt?: string }) => void }
 declare global {
   interface Window {
-    google?: { accounts: { oauth2: { initTokenClient: (c: { client_id: string; scope: string; callback: (r: TokenResponse) => void; error_callback?: () => void }) => TokenClient } } }
+    google?: { accounts: { oauth2: { hasGrantedAllScopes?: (r: TokenResponse, ...scopes: string[]) => boolean; initTokenClient: (c: { client_id: string; scope: string; callback: (r: TokenResponse) => void; error_callback?: () => void }) => TokenClient } } }
   }
 }
 
@@ -40,7 +40,12 @@ export async function requestGmailToken(): Promise<string> {
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPE,
-      callback: (r) => (r.access_token ? resolve(r.access_token) : reject(new Error('Gmail access was not approved.'))),
+      callback: (r) => {
+        if (!r.access_token) return reject(new Error('Gmail access was not approved.'))
+        const ok = window.google?.accounts.oauth2.hasGrantedAllScopes?.(r, SCOPE)
+        if (ok === false) return reject(new Error('Google did not give Billio permission to read your email. On the approval screen, tick "Read your email" (or Select all), then tap Continue and try again.'))
+        resolve(r.access_token)
+      },
       error_callback: () => reject(new Error('Gmail access was not approved.')),
     })
     client.requestAccessToken({ prompt: 'consent' })
