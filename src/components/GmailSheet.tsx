@@ -67,6 +67,9 @@ export function GmailSheet() {
           <p className="q-hint" style={{ margin: '-4px 0 14px' }}>
             Billio looks through your receipts and renewal emails and lists what is still active. Google asks you to approve read-only access, and your password never reaches us. Emails are read on this device, and nothing is uploaded.
           </p>
+          <p className="q-hint" style={{ margin: '0 0 14px' }}>
+            Google may show a warning that the app is not verified. That is expected while Billio is new. Tap <b>Advanced</b>, then <b>Go to Billio (unsafe)</b>, then Continue.
+          </p>
           {phase === 'error' && msg === 'not-configured' ? (
             <p className="err" role="alert">Gmail connection is not switched on for this build yet. Add your Google client ID to the .env file. The steps are in the README.</p>
           ) : phase === 'error' ? <p className="err" role="alert">{msg}</p> : null}
