@@ -4,6 +4,14 @@ Know what's about to hit your card. Billio tracks foreign subscriptions paid by 
 
 Live: https://billio-three.vercel.app
 
+![Billio on desktop: the next debit counted down in days, with the subscriptions coming up](docs/screenshots/dashboard-desktop.png)
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="Billio on a phone" width="300" />
+</p>
+
+![Billio landing page](docs/screenshots/welcome-desktop.png)
+
 ## What it does
 
 - **Countdown to the next charge.** Add a subscription once and Billio works out the next billing date from its cycle (weekly, monthly, yearly).
